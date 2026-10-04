@@ -1,0 +1,24 @@
+# Build output
+target/
+
+# NetBeans / IDE
+nbproject/private/
+build/
+dist/
+nb-configuration.xml
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Du lieu nguoi dung sinh ra khi chay (khong dua len Git)
+storage/users/
+storage/rooms/
+
+# Cau hinh cuc bo co mat khau MySQL -> dung config.properties.example de tao file nay
+src/main/resources/config.properties
+
+*.log

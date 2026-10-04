@@ -1,0 +1,15 @@
+# Sao chep file nay thanh config.properties (cung thu muc) roi dien mat khau MySQL cua may ban.
+# Neu khong co config.properties, he thong van chay o che do In-Memory (khong can MySQL).
+server.control_port=2121
+server.web_port=8080
+server.pasv_port_min=30000
+server.pasv_port_max=31000
+server.storage_root=storage
+server.max_connections=50
+server.idle_timeout_seconds=300
+
+db.host=127.0.0.1
+db.port=3306
+db.name=ftp_system
+db.user=root
+db.password=DOI_MAT_KHAU_CUA_BAN

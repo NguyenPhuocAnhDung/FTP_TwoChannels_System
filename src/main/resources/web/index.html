@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTP System Web Portal & Network Monitor (RFC 959)</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="logo-group">
+                <div class="logo-icon">📡</div>
+                <div>
+                    <h1>FTP 2-CHANNEL PROTOCOL SIMULATOR</h1>
+                    <p class="subtitle">Mô phỏng Giao thức & Cấu trúc Hệ thống Mạng (RFC 959) - Java 23 & MySQL</p>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span id="badgeServer" class="badge badge-success">SERVER: ONLINE (Port 2121)</span>
+                <span id="badgeDb" class="badge badge-info">MYSQL: CONNECTED</span>
+            </div>
+        </header>
+
+        <!-- SUMMARY CARDS -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="card-title">Kênh Điều Khiển (Control TCP)</div>
+                <div class="card-value text-blue" id="valPort">Port 2121</div>
+                <div class="card-hint">Lắng nghe lệnh & bắt tay kết nối</div>
+            </div>
+            <div class="metric-card">
+                <div class="card-title">Clients Đang Kết Nối</div>
+                <div class="card-value text-green" id="valClients">0</div>
+                <div class="card-hint">Phiên đa luồng đồng thời</div>
+            </div>
+            <div class="metric-card">
+                <div class="card-title">Tổng Dữ Liệu Truyền</div>
+                <div class="card-value text-purple" id="valTransferred">0 KB</div>
+                <div class="card-hint">Kênh dữ liệu Byte Stream</div>
+            </div>
+            <div class="metric-card">
+                <div class="card-title">Băng Thông Tức Thời</div>
+                <div class="card-value text-orange" id="valSpeed">0.0 KB/s</div>
+                <div class="card-hint">Throughput thời gian thực</div>
+            </div>
+        </div>
+
+        <!-- MAIN NAVIGATION TABS -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('tabTopology')">🌐 Sơ Đồ Cấu Trúc Mạng</button>
+            <button class="tab-btn" onclick="switchTab('tabFiles')">📁 Quản Lý Tệp Tin (Public Storage)</button>
+            <button class="tab-btn" onclick="switchTab('tabLogs')">📜 Nhật Ký Hoạt Động (MySQL Logs)</button>
+            <button class="tab-btn" onclick="switchTab('tabPackets')">🔍 Gói Tin Tầng Mạng (Packet Inspector)</button>
+        </div>
+
+        <!-- TAB 1: TOPOLOGY CANVAS -->
+        <div id="tabTopology" class="tab-content active">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Mô Phỏng Tương Tác 2 Kênh (Control & Data Channels) & Luồng Dữ Liệu</h2>
+                    <span class="pulse-indicator">● Live Animation</span>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="topoCanvas" width="1000" height="320"></canvas>
+                </div>
+                <div class="topology-legend">
+                    <div class="legend-item"><span class="legend-color line-control"></span> Kênh Điều Khiển: TCP Port 2121 (Lệnh Text RFC 959)</div>
+                    <div class="legend-item"><span class="legend-color line-data"></span> Kênh Dữ Liệu: TCP Port Động 300xx (Byte Stream truyền File)</div>
+                    <div class="legend-item"><span class="legend-color line-db"></span> Truy Vấn MySQL: TCP Port 3306 (Xác thực & Audit)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: FILES -->
+        <div id="tabFiles" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Danh Sách Tệp Tin Trong Thư Mục Lưu Trữ</h2>
+                    <button class="btn-refresh" onclick="fetchFiles()">Làm Mới</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Tên Tệp Tin</th>
+                            <th>Kích Thước</th>
+                            <th>Loại</th>
+                            <th>Ngày Sửa Đổi</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileTableBody">
+                        <tr><td colspan="5" style="text-align:center;">Đang tải danh sách...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: LOGS -->
+        <div id="tabLogs" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Nhật Ký Truyền Tải & Hoạt Động Lưu Trong MySQL (Audit Logs)</h2>
+                    <button class="btn-refresh" onclick="fetchLogs()">Làm Mới</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Thời Gian</th>
+                            <th>Tài Khoản</th>
+                            <th>IP Client</th>
+                            <th>Hành Động</th>
+                            <th>Tên Tệp Tin</th>
+                            <th>Kích Thước</th>
+                            <th>Tốc Độ</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                        <tr><td colspan="8" style="text-align:center;">Chưa có nhật ký ghi nhận.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: PACKETS -->
+        <div id="tabPackets" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Mô Phỏng Gói Tin Tầng Vận Chuyển (TCP) & Tầng Ứng Dụng (FTP/HTTP)</h2>
+                </div>
+                <p style="margin:0 0 10px 0;font-size:13px;opacity:.85;"><b>Lưu ý kỹ thuật:</b> <code>java.net.Socket</code> che giấu cờ TCP với ứng dụng, nên các cờ SYN/ACK/PSH/FIN được <b>suy diễn từ vòng đời Socket</b> (accept/connect = bắt tay 3 bước, đóng Socket = FIN), không phải bắt gói tin thật từ card mạng.</p>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Thời Gian</th>
+                            <th>Tầng Mạng</th>
+                            <th>Giao Thức</th>
+                            <th>Cờ TCP (suy diễn)</th>
+                            <th>Nguồn ➔ Đích</th>
+                            <th>Kích Thước</th>
+                            <th>Chi Tiết Lệnh / Dữ Liệu</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packetTableBody">
+                        <tr><td colspan="7" style="text-align:center;">Đang theo dõi gói tin mạng...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

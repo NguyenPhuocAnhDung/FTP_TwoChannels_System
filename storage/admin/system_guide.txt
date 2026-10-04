@@ -1,0 +1,5 @@
+HUONG DAN QUAN TRI HE THONG FTP SERVER 2 KENH
+1. Tai khoan Administrator co toan quyen Read, Write, Delete, tao thu muc.
+2. Nhat ky truyen tai duoc luu tai bang transfer_logs trong MySQL.
+3. Ban co the truy cap Web Dashboard tai dia chi: http://localhost:8080
+4. Kiem soat bang thong va han ngach duoc ap dung theo cau hinh nguoi dung.
