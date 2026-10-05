@@ -219,14 +219,25 @@ public class ClientControlHandler implements Runnable {
                     break;
 
                 case "APPROVE":
+                case "SETROLE":
                     if (parts.length < 3) {
-                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE APPROVE <ten_phong> <username> [EDITOR|VIEWER]");
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE " + sub + " <ten_phong> <username> [EDITOR|VIEWER] [CAN_DELETE(0|1)]");
                         return;
                     }
                     String roomApprove = parts[1].trim();
                     String targetUser = parts[2].trim();
                     String role = (parts.length >= 4) ? parts[3].trim().toUpperCase() : "EDITOR";
                     if (!"VIEWER".equals(role) && !"EDITOR".equals(role)) role = "EDITOR";
+
+                    boolean canUpload = "EDITOR".equals(role);
+                    boolean canDelete = false;
+                    if (parts.length >= 5) {
+                        String delStr = parts[4].trim();
+                        canDelete = "1".equals(delStr) || "TRUE".equalsIgnoreCase(delStr) || "YES".equalsIgnoreCase(delStr);
+                    } else if ("EDITOR".equals(role)) {
+                        // Editor mac dinh duoc phep ca Upload va Xoa file trong phong de lam viec nhom
+                        canDelete = true;
+                    }
 
                     // Kiem tra nguoi goi co phai Chu phong hoac Admin khong
                     com.ftpsystem.common.Room r = roomDao.findByRoomName(roomApprove);
@@ -239,17 +250,18 @@ public class ClientControlHandler implements Runnable {
                         return;
                     }
 
-                    boolean appOk = roomDao.approveMember(roomApprove, targetUser, role, "EDITOR".equals(role), false);
+                    boolean appOk = roomDao.approveMember(roomApprove, targetUser, role, canUpload, canDelete);
                     if (appOk) {
-                        reply(FtpResponseCode.COMMAND_OK, "200 Da phe duyet thanh vien '" + targetUser + "' vao phong voi vai tro " + role + ".");
+                        reply(FtpResponseCode.COMMAND_OK, "200 Da cap nhat thanh vien '" + targetUser + "' vai tro " + role + " (Upload: " + canUpload + ", Xoa: " + canDelete + ").");
                     } else {
-                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Loi khi phe duyet thanh vien.");
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Loi khi phan quyen thanh vien.");
                     }
                     break;
 
                 case "REJECT":
+                case "KICK":
                     if (parts.length < 3) {
-                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE REJECT <ten_phong> <username>");
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE " + sub + " <ten_phong> <username>");
                         return;
                     }
                     String roomReject = parts[1].trim();
@@ -693,6 +705,10 @@ public class ClientControlHandler implements Runnable {
             RoomMember m = com.ftpsystem.database.RoomDAO.getInstance().getMemberRole(room.getRoomName(), currentUser.getUsername());
             if (m == null) return false;
             return delete ? m.isCanDelete() : m.isCanUpload();
+        }
+        // Trong thu muc ca nhan (home) cua chinh minh: Cho phep user tu do quan ly, upload va xoa file cua minh
+        if (isChildOf(f, userHomeDir)) {
+            return true;
         }
         return delete ? currentUser.isCanDelete() : currentUser.isCanWrite();
     }

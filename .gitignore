@@ -17,6 +17,10 @@ Thumbs.db
 # Du lieu nguoi dung sinh ra khi chay (khong dua len Git)
 storage/users/
 storage/rooms/
+storage/*.zip
+storage/*.csv
+storage/*.bin
+storage/*.tmp
 
 # Cau hinh cuc bo co mat khau MySQL -> dung config.properties.example de tao file nay
 src/main/resources/config.properties

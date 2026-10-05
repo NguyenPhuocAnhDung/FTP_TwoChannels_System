@@ -334,4 +334,40 @@ public class RoomDAO {
         }
         return null;
     }
+
+    public List<RoomMember> getMembersOfRoom(String roomName) {
+        if (!dbManager.isMockMode()) {
+            List<RoomMember> result = new ArrayList<>();
+            String sql = "SELECT rm.*, r.room_name FROM room_members rm " +
+                         "JOIN rooms r ON rm.room_id = r.id " +
+                         "WHERE r.room_name = ? ORDER BY rm.status ASC, rm.role ASC, rm.joined_at ASC";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, roomName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        RoomMember m = new RoomMember(
+                            rs.getInt("room_id"),
+                            rs.getString("room_name"),
+                            rs.getString("username"),
+                            rs.getString("role"),
+                            rs.getString("status"),
+                            rs.getBoolean("can_upload"),
+                            rs.getBoolean("can_delete")
+                        );
+                        m.setJoinedAt(rs.getTimestamp("joined_at"));
+                        result.add(m);
+                    }
+                }
+            } catch (SQLException ignored) {}
+            return result;
+        }
+        List<RoomMember> result = new ArrayList<>();
+        for (RoomMember m : mockMembers) {
+            if (m.getRoomName().equalsIgnoreCase(roomName)) {
+                result.add(m);
+            }
+        }
+        return result;
+    }
 }
