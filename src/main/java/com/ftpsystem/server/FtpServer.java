@@ -66,11 +66,11 @@ public class FtpServer {
             // Khoi dong luong chap nhan ket noi (Acceptor Thread)
             threadPool.submit(this::acceptLoop);
 
-            // Khoi dong Embedded Web Server (Port 8080)
+            // Khoi dong Embedded Web Server
             try {
                 webServer = new EmbeddedWebServer(FtpConstants.DEFAULT_WEB_PORT, this);
                 webServer.start();
-                notifyLog("Web Admin Portal & REST API da khoi dong tai http://localhost:" + FtpConstants.DEFAULT_WEB_PORT, "INFO");
+                notifyLog("Web Admin Portal & REST API da khoi dong tai http://localhost:" + webServer.getPort(), "INFO");
             } catch (Exception e) {
                 notifyLog("Khong the bat Web Server: " + e.getMessage(), "WARN");
             }
@@ -214,6 +214,7 @@ public class FtpServer {
 
     public boolean isRunning() { return running; }
     public int getControlPort() { return controlPort; }
+    public int getWebPort() { return webServer != null ? webServer.getPort() : FtpConstants.DEFAULT_WEB_PORT; }
     public List<ClientControlHandler> getActiveClients() { return activeClients; }
     public List<NetworkPacketInfo> getRecentPackets() { return new ArrayList<>(recentPackets); }
     public long getTotalTransferredBytes() { return totalTransferredBytes.get(); }

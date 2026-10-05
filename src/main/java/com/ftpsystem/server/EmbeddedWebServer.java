@@ -17,12 +17,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
- * Web Server HTTP/1.1 nhung tren Java (Port 8080)
+ * Web Server HTTP/1.1 nhung tren Java (Mac dinh Port 8088, tu dong doi cong neu bi trung)
  * Cung cap Web Admin Portal va REST API giam sat he thong mang,
  * the hien tinh da dang cong nghe (Java + HTML5/CSS3/JavaScript).
  */
 public class EmbeddedWebServer {
-    private final int port;
+    private int port;
     private final FtpServer ftpServer;
     private HttpServer httpServer;
 
@@ -32,7 +32,28 @@ public class EmbeddedWebServer {
     }
 
     public void start() throws IOException {
-        httpServer = HttpServer.create(new InetSocketAddress(port), 0);
+        int[] candidates = {port, 8088, 8089, 8081, 8888, 9090};
+        java.util.LinkedHashSet<Integer> portSet = new java.util.LinkedHashSet<>();
+        for (int p : candidates) {
+            if (p > 0) portSet.add(p);
+        }
+
+        IOException lastEx = null;
+        for (int p : portSet) {
+            try {
+                httpServer = HttpServer.create(new InetSocketAddress(p), 0);
+                this.port = p;
+                lastEx = null;
+                break;
+            } catch (IOException e) {
+                lastEx = e;
+            }
+        }
+
+        if (httpServer == null) {
+            if (lastEx != null) throw lastEx;
+            throw new IOException("Khong the mo cong HTTP cho Web Portal");
+        }
 
         // API endpoints
         httpServer.createContext("/api/stats", new StatsHandler());
@@ -45,6 +66,10 @@ public class EmbeddedWebServer {
 
         httpServer.setExecutor(null); // Dung mac dinh
         httpServer.start();
+    }
+
+    public int getPort() {
+        return port;
     }
 
     public void stop() {

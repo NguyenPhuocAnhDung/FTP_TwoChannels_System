@@ -6,7 +6,7 @@ package com.ftpsystem.common;
 public class FtpConstants {
     // Cong mac dinh
     public static final int DEFAULT_CONTROL_PORT = 2121;
-    public static final int DEFAULT_WEB_PORT = 8080;
+    public static final int DEFAULT_WEB_PORT = 8088;
     public static final int PASV_PORT_MIN = 30000;
     public static final int PASV_PORT_MAX = 31000; // 1001 cong: du cho nhieu phien, tranh het cong do TIME_WAIT
 

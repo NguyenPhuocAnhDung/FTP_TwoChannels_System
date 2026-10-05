@@ -14,7 +14,7 @@ Ngôn ngữ: Java 21+ (phát triển trên JDK 23) · IDE: Apache NetBeans 22 ·
 - Giới hạn băng thông theo phiên, định ngạch dung lượng theo tài khoản.
 - Sandbox chống Path Traversal, mật khẩu SHA-256 + Salt, `PORT` chỉ nhận IP của chính Client.
 - Phòng cộng tác: Chủ phòng duyệt thành viên với vai trò Editor / Viewer.
-- Client Swing hai khung (máy cục bộ / máy chủ), Server Dashboard, Web Portal cổng 8080.
+- Client Swing hai khung (máy cục bộ / máy chủ), Server Dashboard, Web Portal cổng 8088.
 - Trình theo dõi gói tin: cờ TCP được **suy diễn từ vòng đời Socket** (Java không lộ cờ TCP thật cho ứng dụng).
 
 ## Cách chạy

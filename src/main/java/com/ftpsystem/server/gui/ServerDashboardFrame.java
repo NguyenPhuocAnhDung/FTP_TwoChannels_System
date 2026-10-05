@@ -113,7 +113,7 @@ public class ServerDashboardFrame extends JFrame implements FtpServer.ServerEven
         btnStartStop.setFont(new Font("Segoe UI", Font.BOLD, 12));
 
         btnTestDb = new JButton("MySQL Database");
-        btnWebPortal = new JButton("Web Portal (Port 8080)");
+        btnWebPortal = new JButton("Web Portal (Port " + FtpConstants.DEFAULT_WEB_PORT + ")");
         btnUserMgmt = new JButton("Quản Lý Users");
 
         actionPanel.add(lblPortLabel);
@@ -303,10 +303,11 @@ public class ServerDashboardFrame extends JFrame implements FtpServer.ServerEven
     }
 
     private void openWebPortal() {
+        int webPort = ftpServer != null ? ftpServer.getWebPort() : FtpConstants.DEFAULT_WEB_PORT;
         try {
-            Desktop.getDesktop().browse(new URI("http://localhost:" + FtpConstants.DEFAULT_WEB_PORT));
+            Desktop.getDesktop().browse(new URI("http://localhost:" + webPort));
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Vui lòng mở trình duyệt và truy cập: http://localhost:" + FtpConstants.DEFAULT_WEB_PORT, "Web Portal", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Vui lòng mở trình duyệt và truy cập: http://localhost:" + webPort, "Web Portal", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -353,6 +354,7 @@ public class ServerDashboardFrame extends JFrame implements FtpServer.ServerEven
                 btnStartStop.setText("Dừng Server");
                 btnStartStop.setBackground(new Color(220, 53, 69));
                 txtPort.setEnabled(false);
+                btnWebPortal.setText("Web Portal (Port " + ftpServer.getWebPort() + ")");
             } else {
                 lblServerStatus.setText(" [ĐÃ DỪNG] ");
                 lblServerStatus.setBackground(new Color(220, 53, 69));
@@ -504,7 +506,7 @@ public class ServerDashboardFrame extends JFrame implements FtpServer.ServerEven
             drawNode(g2, clientX, clientY, "FTP CLIENT", "Desktop/CLI", new Color(41, 128, 185));
             drawNode(g2, serverX, serverY, "FTP SERVER", "Core Port 2121", ftpServer.isRunning() ? new Color(39, 174, 96) : new Color(192, 57, 43));
             drawNode(g2, dbX, dbY, "MYSQL DB", "Users / Audit", new Color(142, 68, 173));
-            drawNode(g2, webX, webY, "WEB PORTAL", "HTTP Port 8080", new Color(22, 160, 133));
+            drawNode(g2, webX, webY, "WEB PORTAL", "HTTP Port " + (ftpServer != null ? ftpServer.getWebPort() : FtpConstants.DEFAULT_WEB_PORT), new Color(22, 160, 133));
         }
 
         private void drawNode(Graphics2D g2, int cx, int cy, String title, String sub, Color color) {
