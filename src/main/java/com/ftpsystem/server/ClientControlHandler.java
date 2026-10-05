@@ -180,7 +180,7 @@ public class ClientControlHandler implements Runnable {
     private void handleSite(String siteArg) {
         if (!checkAuth()) return;
         try {
-            String[] parts = siteArg.split("\\s+", 4);
+            String[] parts = siteArg.trim().split("\\s+");
             if (parts.length == 0 || parts[0].isEmpty()) {
                 reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Thieu lenh SITE.");
                 return;
