@@ -93,10 +93,22 @@ public class RoomDAO {
         Room r = findByRoomName(roomName);
         if (r == null) return false;
 
-        // Kiem tra da tham gia chua
-        for (RoomMember m : mockMembers) {
-            if (m.getRoomName().equalsIgnoreCase(roomName) && m.getUsername().equalsIgnoreCase(username)) {
-                return false; // Da gui hoac da la thanh vien
+        // Kiem tra da tham gia chua tren MySQL hoac Mock
+        if (!dbManager.isMockMode()) {
+            String checkSql = "SELECT status FROM room_members WHERE room_id = ? AND username = ?";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(checkSql)) {
+                ps.setInt(1, r.getId());
+                ps.setString(2, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return false; // Da la thanh vien hoac da gui yeu cau
+                }
+            } catch (SQLException ignored) {}
+        } else {
+            for (RoomMember m : mockMembers) {
+                if (m.getRoomName().equalsIgnoreCase(roomName) && m.getUsername().equalsIgnoreCase(username)) {
+                    return false;
+                }
             }
         }
 
@@ -190,6 +202,24 @@ public class RoomDAO {
     }
 
     public List<Room> getRoomsOwnedBy(String ownerUsername) {
+        if (!dbManager.isMockMode()) {
+            List<Room> list = new ArrayList<>();
+            String sql = "SELECT * FROM rooms WHERE owner_username = ?";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, ownerUsername);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Room r = new Room(rs.getString("room_name"), rs.getString("owner_username"),
+                                rs.getString("description"), rs.getString("storage_path"));
+                        r.setId(rs.getInt("id"));
+                        r.setCreatedAt(rs.getTimestamp("created_at"));
+                        list.add(r);
+                    }
+                }
+            } catch (SQLException ignored) {}
+            return list;
+        }
         List<Room> list = new ArrayList<>();
         for (Room r : mockRooms.values()) {
             if (r.getOwnerUsername().equalsIgnoreCase(ownerUsername)) {
@@ -200,6 +230,32 @@ public class RoomDAO {
     }
 
     public List<RoomMember> getPendingRequestsForOwner(String ownerUsername) {
+        if (!dbManager.isMockMode()) {
+            List<RoomMember> result = new ArrayList<>();
+            String sql = "SELECT rm.*, r.room_name FROM room_members rm " +
+                         "JOIN rooms r ON rm.room_id = r.id " +
+                         "WHERE r.owner_username = ? AND rm.status = 'PENDING'";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, ownerUsername);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        RoomMember m = new RoomMember(
+                            rs.getInt("room_id"),
+                            rs.getString("room_name"),
+                            rs.getString("username"),
+                            rs.getString("role"),
+                            rs.getString("status"),
+                            rs.getBoolean("can_upload"),
+                            rs.getBoolean("can_delete")
+                        );
+                        m.setJoinedAt(rs.getTimestamp("joined_at"));
+                        result.add(m);
+                    }
+                }
+            } catch (SQLException ignored) {}
+            return result;
+        }
         List<RoomMember> result = new ArrayList<>();
         List<Room> owned = getRoomsOwnedBy(ownerUsername);
         for (Room r : owned) {
@@ -213,6 +269,26 @@ public class RoomDAO {
     }
 
     public List<Room> getApprovedRoomsForUser(String username) {
+        if (!dbManager.isMockMode()) {
+            List<Room> list = new ArrayList<>();
+            String sql = "SELECT r.* FROM rooms r " +
+                         "JOIN room_members rm ON r.id = rm.room_id " +
+                         "WHERE rm.username = ? AND rm.status = 'APPROVED'";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Room r = new Room(rs.getString("room_name"), rs.getString("owner_username"),
+                                rs.getString("description"), rs.getString("storage_path"));
+                        r.setId(rs.getInt("id"));
+                        r.setCreatedAt(rs.getTimestamp("created_at"));
+                        list.add(r);
+                    }
+                }
+            } catch (SQLException ignored) {}
+            return list;
+        }
         List<Room> list = new ArrayList<>();
         for (RoomMember m : mockMembers) {
             if (m.getUsername().equalsIgnoreCase(username) && "APPROVED".equalsIgnoreCase(m.getStatus())) {
@@ -226,6 +302,31 @@ public class RoomDAO {
     }
 
     public RoomMember getMemberRole(String roomName, String username) {
+        if (!dbManager.isMockMode()) {
+            String sql = "SELECT rm.* FROM room_members rm " +
+                         "JOIN rooms r ON rm.room_id = r.id " +
+                         "WHERE r.room_name = ? AND rm.username = ? AND rm.status = 'APPROVED'";
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, roomName);
+                ps.setString(2, username);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        RoomMember m = new RoomMember(
+                            rs.getInt("room_id"),
+                            roomName,
+                            rs.getString("username"),
+                            rs.getString("role"),
+                            rs.getString("status"),
+                            rs.getBoolean("can_upload"),
+                            rs.getBoolean("can_delete")
+                        );
+                        m.setJoinedAt(rs.getTimestamp("joined_at"));
+                        return m;
+                    }
+                }
+            } catch (SQLException ignored) {}
+        }
         for (RoomMember m : mockMembers) {
             if (m.getRoomName().equalsIgnoreCase(roomName) && m.getUsername().equalsIgnoreCase(username) && "APPROVED".equalsIgnoreCase(m.getStatus())) {
                 return m;

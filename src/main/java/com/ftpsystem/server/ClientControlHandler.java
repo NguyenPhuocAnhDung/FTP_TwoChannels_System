@@ -46,6 +46,7 @@ public class ClientControlHandler implements Runnable {
     public void run() {
         try {
             controlSocket.setSoTimeout(FtpConstants.SOCKET_TIMEOUT_MS);
+            controlSocket.setKeepAlive(true);
             reader = new BufferedReader(new InputStreamReader(controlSocket.getInputStream(), "UTF-8"));
             writer = new PrintWriter(new OutputStreamWriter(controlSocket.getOutputStream(), "UTF-8"), true);
             dataChannel.setPacketListener(server::recordPacket, clientIp + ":" + clientPort);
@@ -54,7 +55,15 @@ public class ClientControlHandler implements Runnable {
             reply(FtpResponseCode.SERVICE_READY, "220 Chuyen de He Thong FTP 2 Kenh (RFC 959) Java 23 san sang phuc vu.");
 
             String line;
-            while (running && (line = reader.readLine()) != null) {
+            while (running) {
+                try {
+                    line = reader.readLine();
+                    if (line == null) break;
+                } catch (java.net.SocketTimeoutException ste) {
+                    reply(FtpResponseCode.SERVICE_NOT_AVAILABLE, "421 Phien lam viec het thoi gian cho (Idle Timeout). Server dong ket noi.");
+                    break;
+                }
+
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
@@ -170,92 +179,96 @@ public class ClientControlHandler implements Runnable {
 
     private void handleSite(String siteArg) {
         if (!checkAuth()) return;
-        String[] parts = siteArg.split("\\s+", 4);
-        if (parts.length == 0) {
-            reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Thieu lenh SITE.");
-            return;
-        }
+        try {
+            String[] parts = siteArg.split("\\s+", 4);
+            if (parts.length == 0 || parts[0].isEmpty()) {
+                reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Thieu lenh SITE.");
+                return;
+            }
 
-        String sub = parts[0].toUpperCase();
-        com.ftpsystem.database.RoomDAO roomDao = com.ftpsystem.database.RoomDAO.getInstance();
+            String sub = parts[0].toUpperCase();
+            com.ftpsystem.database.RoomDAO roomDao = com.ftpsystem.database.RoomDAO.getInstance();
 
-        switch (sub) {
-            case "MAKEROOM":
-                if (parts.length < 2) {
-                    reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE MAKEROOM <ten_phong>");
-                    return;
-                }
-                String rName = parts[1].trim();
-                boolean created = roomDao.createRoom(rName, currentUser.getUsername(), "Phong cua " + currentUser.getUsername());
-                if (created) {
-                    reply(FtpResponseCode.COMMAND_OK, "200 Tao phong '" + rName + "' thanh cong! Ban la Chu phong (Owner).");
-                } else {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Phong da ton tai hoac khong the tao.");
-                }
-                break;
+            switch (sub) {
+                case "MAKEROOM":
+                    if (parts.length < 2) {
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE MAKEROOM <ten_phong>");
+                        return;
+                    }
+                    String rName = parts[1].trim();
+                    boolean created = roomDao.createRoom(rName, currentUser.getUsername(), "Phong cua " + currentUser.getUsername());
+                    if (created) {
+                        reply(FtpResponseCode.COMMAND_OK, "200 Tao phong '" + rName + "' thanh cong! Ban la Chu phong (Owner).");
+                    } else {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Phong da ton tai hoac ten phong khong hop le (chi dung chu/so/dau gach, tu 3-50 ky tu).");
+                    }
+                    break;
 
-            case "JOINROOM":
-                if (parts.length < 2) {
-                    reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE JOINROOM <ten_phong>");
-                    return;
-                }
-                String joinTarget = parts[1].trim();
-                boolean requested = roomDao.requestJoinRoom(joinTarget, currentUser.getUsername());
-                if (requested) {
-                    reply(FtpResponseCode.COMMAND_OK, "200 Da gui yeu cau vao phong '" + joinTarget + "'. Cho Chu phong phe duyet.");
-                } else {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Khong tim thay phong hoac ban da gui yeu cau truoc do.");
-                }
-                break;
+                case "JOINROOM":
+                    if (parts.length < 2) {
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE JOINROOM <ten_phong>");
+                        return;
+                    }
+                    String joinTarget = parts[1].trim();
+                    boolean requested = roomDao.requestJoinRoom(joinTarget, currentUser.getUsername());
+                    if (requested) {
+                        reply(FtpResponseCode.COMMAND_OK, "200 Da gui yeu cau vao phong '" + joinTarget + "'. Cho Chu phong phe duyet.");
+                    } else {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Khong tim thay phong hoac ban da gui yeu cau truoc do.");
+                    }
+                    break;
 
-            case "APPROVE":
-                if (parts.length < 3) {
-                    reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE APPROVE <ten_phong> <username> [EDITOR|VIEWER]");
-                    return;
-                }
-                String roomApprove = parts[1].trim();
-                String targetUser = parts[2].trim();
-                String role = (parts.length >= 4) ? parts[3].trim().toUpperCase() : "EDITOR";
-                if (!"VIEWER".equals(role) && !"EDITOR".equals(role)) role = "EDITOR";
+                case "APPROVE":
+                    if (parts.length < 3) {
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE APPROVE <ten_phong> <username> [EDITOR|VIEWER]");
+                        return;
+                    }
+                    String roomApprove = parts[1].trim();
+                    String targetUser = parts[2].trim();
+                    String role = (parts.length >= 4) ? parts[3].trim().toUpperCase() : "EDITOR";
+                    if (!"VIEWER".equals(role) && !"EDITOR".equals(role)) role = "EDITOR";
 
-                // Kiem tra nguoi goi co phai Chu phong hoac Admin khong
-                com.ftpsystem.common.Room r = roomDao.findByRoomName(roomApprove);
-                if (r == null) {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Khong tim thay phong: " + roomApprove);
-                    return;
-                }
-                if (!r.getOwnerUsername().equalsIgnoreCase(currentUser.getUsername()) && !currentUser.isAdmin()) {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Ban khong phai Chu phong (Owner) cua phong nay!");
-                    return;
-                }
+                    // Kiem tra nguoi goi co phai Chu phong hoac Admin khong
+                    com.ftpsystem.common.Room r = roomDao.findByRoomName(roomApprove);
+                    if (r == null) {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Khong tim thay phong: " + roomApprove);
+                        return;
+                    }
+                    if (!r.getOwnerUsername().equalsIgnoreCase(currentUser.getUsername()) && !currentUser.isAdmin()) {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Ban khong phai Chu phong (Owner) cua phong nay!");
+                        return;
+                    }
 
-                boolean appOk = roomDao.approveMember(roomApprove, targetUser, role, "EDITOR".equals(role), false);
-                if (appOk) {
-                    reply(FtpResponseCode.COMMAND_OK, "200 Da phe duyet thanh vien '" + targetUser + "' vao phong voi vai tro " + role + ".");
-                } else {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Loi khi phe duyet thanh vien.");
-                }
-                break;
+                    boolean appOk = roomDao.approveMember(roomApprove, targetUser, role, "EDITOR".equals(role), false);
+                    if (appOk) {
+                        reply(FtpResponseCode.COMMAND_OK, "200 Da phe duyet thanh vien '" + targetUser + "' vao phong voi vai tro " + role + ".");
+                    } else {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Loi khi phe duyet thanh vien.");
+                    }
+                    break;
 
-            case "REJECT":
-                if (parts.length < 3) {
-                    reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE REJECT <ten_phong> <username>");
-                    return;
-                }
-                String roomReject = parts[1].trim();
-                String targetRej = parts[2].trim();
-                com.ftpsystem.common.Room rRej = roomDao.findByRoomName(roomReject);
-                if (rRej == null || (!rRej.getOwnerUsername().equalsIgnoreCase(currentUser.getUsername()) && !currentUser.isAdmin())) {
-                    reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Ban khong co quyen tren phong nay.");
-                    return;
-                }
-                roomDao.rejectMember(roomReject, targetRej);
-                reply(FtpResponseCode.COMMAND_OK, "200 Da tu choi/xoa thanh vien '" + targetRej + "' khoi phong.");
-                break;
+                case "REJECT":
+                    if (parts.length < 3) {
+                        reply(FtpResponseCode.SYNTAX_ERROR_PARAMETERS, "501 Cu phap: SITE REJECT <ten_phong> <username>");
+                        return;
+                    }
+                    String roomReject = parts[1].trim();
+                    String targetRej = parts[2].trim();
+                    com.ftpsystem.common.Room rRej = roomDao.findByRoomName(roomReject);
+                    if (rRej == null || (!rRej.getOwnerUsername().equalsIgnoreCase(currentUser.getUsername()) && !currentUser.isAdmin())) {
+                        reply(FtpResponseCode.FILE_UNAVAILABLE, "550 Ban khong co quyen tren phong nay.");
+                        return;
+                    }
+                    roomDao.rejectMember(roomReject, targetRej);
+                    reply(FtpResponseCode.COMMAND_OK, "200 Da tu choi/xoa thanh vien '" + targetRej + "' khoi phong.");
+                    break;
 
-            default:
-                reply(FtpResponseCode.COMMAND_NOT_IMPLEMENTED, "502 Lenh SITE chua duoc ho tro.");
-                break;
+                default:
+                    reply(FtpResponseCode.COMMAND_NOT_IMPLEMENTED, "502 Lenh SITE chua duoc ho tro.");
+                    break;
+            }
+        } catch (Exception e) {
+            reply(FtpResponseCode.REQUESTED_ACTION_NOT_TAKEN, "451 Loi xu ly lenh SITE: " + e.getMessage());
         }
     }
 

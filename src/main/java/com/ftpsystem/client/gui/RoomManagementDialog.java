@@ -119,20 +119,37 @@ public class RoomManagementDialog extends JDialog {
         btnCreate.addActionListener(e -> {
             String name = txtNewRoom.getText().trim();
             if (name.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Vui lòng nhập tên phòng!");
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập tên phòng!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (!name.matches("[A-Za-z0-9_\\-]{3,50}")) {
+                JOptionPane.showMessageDialog(this, "Tên phòng không hợp lệ!\nTên phòng chỉ được chứa chữ cái, chữ số, dấu gạch dưới (_) hoặc gạch nối (-), từ 3 đến 50 ký tự.", "Tên Phòng Không Hợp Lệ", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (!ftpClient.isConnected()) {
+                JOptionPane.showMessageDialog(this, "Mất kết nối với máy chủ! Vui lòng đóng hộp thoại và bấm 'Kết nối' lại trên màn hình chính.", "Lỗi Kết Nối", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             new Thread(() -> {
                 try {
                     String res = ftpClient.makeRoom(name);
                     SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(this, res);
+                        JOptionPane.showMessageDialog(this, res, "Kết quả tạo phòng", JOptionPane.INFORMATION_MESSAGE);
                         txtNewRoom.setText("");
                         reloadMyRooms();
                         if (onDataChanged != null) onDataChanged.run();
                     });
                 } catch (Exception ex) {
-                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage()));
+                    SwingUtilities.invokeLater(() -> {
+                        String msg = ex.getMessage();
+                        if (msg != null && (msg.contains("aborted") || msg.contains("Connection reset") || msg.contains("Socket closed") || msg.contains("Mất kết nối"))) {
+                            JOptionPane.showMessageDialog(this, 
+                                "Mất kết nối với Server (kết nối Socket TCP đã bị ngắt)!\nChi tiết: " + msg + "\n\n👉 Cách khắc phục: Đóng hộp thoại này, bấm nút 'Kết nối' trên màn hình chính để kết nối lại rồi mở lại Quản Lý Phòng.",
+                                "Mất Kết Nối", JOptionPane.ERROR_MESSAGE);
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Lỗi tạo phòng: " + msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
                 }
             }).start();
         });
@@ -151,18 +168,31 @@ public class RoomManagementDialog extends JDialog {
         btnJoin.addActionListener(e -> {
             String target = txtJoinRoom.getText().trim();
             if (target.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Vui lòng nhập tên phòng muốn xin vào!");
+                JOptionPane.showMessageDialog(this, "Vui lòng nhập tên phòng muốn xin vào!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (!ftpClient.isConnected()) {
+                JOptionPane.showMessageDialog(this, "Mất kết nối với máy chủ! Vui lòng đóng hộp thoại và bấm 'Kết nối' lại trên màn hình chính.", "Lỗi Kết Nối", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             new Thread(() -> {
                 try {
                     String res = ftpClient.joinRoom(target);
                     SwingUtilities.invokeLater(() -> {
-                        JOptionPane.showMessageDialog(this, res);
+                        JOptionPane.showMessageDialog(this, res, "Kết quả xin vào phòng", JOptionPane.INFORMATION_MESSAGE);
                         txtJoinRoom.setText("");
                     });
                 } catch (Exception ex) {
-                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage()));
+                    SwingUtilities.invokeLater(() -> {
+                        String msg = ex.getMessage();
+                        if (msg != null && (msg.contains("aborted") || msg.contains("Connection reset") || msg.contains("Socket closed") || msg.contains("Mất kết nối"))) {
+                            JOptionPane.showMessageDialog(this, 
+                                "Mất kết nối với Server!\nChi tiết: " + msg + "\n\n👉 Cách khắc phục: Đóng hộp thoại này và bấm nút 'Kết nối' lại trên màn hình chính.",
+                                "Mất Kết Nối", JOptionPane.ERROR_MESSAGE);
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Lỗi: " + msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
                 }
             }).start();
         });
@@ -200,7 +230,11 @@ public class RoomManagementDialog extends JDialog {
     private void doApprove(String role) {
         int row = pendingTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn một thành viên trong bảng để duyệt!");
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một thành viên trong bảng để duyệt!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (!ftpClient.isConnected()) {
+            JOptionPane.showMessageDialog(this, "Mất kết nối với máy chủ! Vui lòng đóng hộp thoại và bấm 'Kết nối' lại trên màn hình chính.", "Lỗi Kết Nối", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -211,12 +245,21 @@ public class RoomManagementDialog extends JDialog {
             try {
                 String res = ftpClient.approveMember(rName, uName, role);
                 SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(this, res);
+                    JOptionPane.showMessageDialog(this, res, "Kết quả phê duyệt", JOptionPane.INFORMATION_MESSAGE);
                     reloadPendingRequests();
                     if (onDataChanged != null) onDataChanged.run();
                 });
             } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage()));
+                SwingUtilities.invokeLater(() -> {
+                    String msg = ex.getMessage();
+                    if (msg != null && (msg.contains("aborted") || msg.contains("Connection reset") || msg.contains("Socket closed") || msg.contains("Mất kết nối"))) {
+                        JOptionPane.showMessageDialog(this, 
+                            "Mất kết nối với Server!\nChi tiết: " + msg + "\n\n👉 Cách khắc phục: Đóng hộp thoại này và bấm nút 'Kết nối' lại trên màn hình chính.",
+                            "Mất Kết Nối", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Lỗi phê duyệt: " + msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
             }
         }).start();
     }
@@ -224,7 +267,11 @@ public class RoomManagementDialog extends JDialog {
     private void doReject() {
         int row = pendingTable.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn một thành viên trong bảng để từ chối!");
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn một thành viên trong bảng để từ chối!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (!ftpClient.isConnected()) {
+            JOptionPane.showMessageDialog(this, "Mất kết nối với máy chủ! Vui lòng đóng hộp thoại và bấm 'Kết nối' lại trên màn hình chính.", "Lỗi Kết Nối", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -235,11 +282,20 @@ public class RoomManagementDialog extends JDialog {
             try {
                 String res = ftpClient.rejectMember(rName, uName);
                 SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(this, res);
+                    JOptionPane.showMessageDialog(this, res, "Kết quả", JOptionPane.INFORMATION_MESSAGE);
                     reloadPendingRequests();
                 });
             } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, ex.getMessage()));
+                SwingUtilities.invokeLater(() -> {
+                    String msg = ex.getMessage();
+                    if (msg != null && (msg.contains("aborted") || msg.contains("Connection reset") || msg.contains("Socket closed") || msg.contains("Mất kết nối"))) {
+                        JOptionPane.showMessageDialog(this, 
+                            "Mất kết nối với Server!\nChi tiết: " + msg + "\n\n👉 Cách khắc phục: Đóng hộp thoại này và bấm nút 'Kết nối' lại trên màn hình chính.",
+                            "Mất Kết Nối", JOptionPane.ERROR_MESSAGE);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Lỗi từ chối: " + msg, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
             }
         }).start();
     }

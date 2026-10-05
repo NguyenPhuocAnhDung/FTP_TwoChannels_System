@@ -12,7 +12,7 @@ public class FtpConstants {
 
     // Buffer size tang van chuyen
     public static final int BUFFER_SIZE = 8192; // 8KB TCP buffer
-    public static final int SOCKET_TIMEOUT_MS = 60000; // 60s timeout
+    public static final int SOCKET_TIMEOUT_MS = 900000; // 15 phut (tranh bi ngat ket noi trong qua trinh su dung GUI hoac thuyet trinh)
 
     // Cac lenh FTP chuan RFC 959 o Tang Ung Dung
     public static final String CMD_USER = "USER";

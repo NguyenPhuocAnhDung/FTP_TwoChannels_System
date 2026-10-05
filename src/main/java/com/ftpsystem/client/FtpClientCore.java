@@ -49,6 +49,7 @@ public class FtpClientCore {
         controlSocket = new Socket();
         controlSocket.connect(new InetSocketAddress(host, port), 10000);
         controlSocket.setSoTimeout(FtpConstants.SOCKET_TIMEOUT_MS);
+        controlSocket.setKeepAlive(true);
 
         reader = new BufferedReader(new InputStreamReader(controlSocket.getInputStream(), "UTF-8"));
         writer = new PrintWriter(new OutputStreamWriter(controlSocket.getOutputStream(), "UTF-8"), true);
@@ -401,27 +402,47 @@ public class FtpClientCore {
         return null;
     }
 
-    private void sendCommand(String cmd) {
+    private void sendCommand(String cmd) throws IOException {
+        if (!connected || writer == null || controlSocket == null || controlSocket.isClosed()) {
+            connected = false;
+            loggedIn = false;
+            throw new IOException("Mất kết nối với Server! Vui lòng bấm 'Kết nối' lại.");
+        }
         writer.print(cmd + "\r\n");
         writer.flush();
+        if (writer.checkError()) {
+            connected = false;
+            loggedIn = false;
+            throw new IOException("Không thể gửi dữ liệu qua Socket TCP (kết nối đã bị ngắt)! Vui lòng bấm 'Kết nối' lại.");
+        }
         for (CommandLogListener l : logListeners) {
             l.onCommandSent(cmd);
         }
     }
 
     private String readResponse() throws IOException {
-        String line = reader.readLine();
-        if (line == null) throw new IOException("Mat ket noi voi Server.");
-
-        int code = 0;
         try {
-            code = Integer.parseInt(line.substring(0, 3));
-        } catch (Exception ignored) {}
+            String line = reader.readLine();
+            if (line == null) {
+                connected = false;
+                loggedIn = false;
+                throw new IOException("Mất kết nối với Server (Server đã đóng kết nối)!");
+            }
 
-        for (CommandLogListener l : logListeners) {
-            l.onResponseReceived(code, line);
+            int code = 0;
+            try {
+                code = Integer.parseInt(line.substring(0, 3));
+            } catch (Exception ignored) {}
+
+            for (CommandLogListener l : logListeners) {
+                l.onResponseReceived(code, line);
+            }
+            return line;
+        } catch (IOException e) {
+            connected = false;
+            loggedIn = false;
+            throw e;
         }
-        return line;
     }
 
     public synchronized void disconnect() {
@@ -439,27 +460,32 @@ public class FtpClientCore {
     }
 
     public synchronized boolean register(String username, String password) throws IOException {
+        if (!connected) throw new IOException("Chưa kết nối với Server! Vui lòng bấm 'Kết nối' trước khi đăng ký.");
         sendCommand("REGISTER " + username + " " + password);
         String res = readResponse();
         return res.startsWith("200");
     }
 
     public synchronized String makeRoom(String roomName) throws IOException {
+        if (!connected) throw new IOException("Chưa kết nối với Server! Vui lòng bấm 'Kết nối' trước khi tạo phòng.");
         sendCommand("SITE MAKEROOM " + roomName);
         return readResponse();
     }
 
     public synchronized String joinRoom(String roomName) throws IOException {
+        if (!connected) throw new IOException("Chưa kết nối với Server! Vui lòng bấm 'Kết nối' trước khi xin vào phòng.");
         sendCommand("SITE JOINROOM " + roomName);
         return readResponse();
     }
 
     public synchronized String approveMember(String roomName, String targetUser, String role) throws IOException {
+        if (!connected) throw new IOException("Chưa kết nối với Server! Vui lòng bấm 'Kết nối' trước khi phê duyệt.");
         sendCommand("SITE APPROVE " + roomName + " " + targetUser + " " + role);
         return readResponse();
     }
 
     public synchronized String rejectMember(String roomName, String targetUser) throws IOException {
+        if (!connected) throw new IOException("Chưa kết nối với Server! Vui lòng bấm 'Kết nối' trước khi thao tác.");
         sendCommand("SITE REJECT " + roomName + " " + targetUser);
         return readResponse();
     }
