@@ -40,3 +40,12 @@ src/main/java/com/ftpsystem/
 src/main/resources/web/   Web Portal (HTML/CSS/JS)
 database/schema.sql       Lược đồ MySQL
 ```
+
+## Bảng Đóng Góp Của Các Thành Viên (Contribution Matrix)
+
+| MSSV | Họ và Tên | Công việc đã thực hiện | Issues & Pull Requests |
+| :---: | :--- | :--- | :---: |
+| 2280601763 | Lý Hoàng Long (NT) | Xây dựng Kênh Điều Khiển & Kênh Dữ Liệu TCP (RFC 959), Quản lý dải cổng PASV/PORT | Issue #1, #2 |
+| 2280600404 | Nguyễn Phước Anh Dũng | Xác thực toàn vẹn SHA-256 Checksum, Resumable Transfer (REST), Packet Inspector | Issue #3, #4 |
+| 2380604153 | Trần Đăng Khoa | Thiết kế giao diện đồ họa Client Swing 2 khung (Local & Remote), Tiến độ truyền tải | Issue #5, #6 |
+| 2280602882 | Nguyễn Hồng Phúc Tấn | Thiết kế CSDL MySQL, Hệ thống Phòng nhóm (Owner, Editor, Viewer) & PathSandbox | Issue #7, #8 |
