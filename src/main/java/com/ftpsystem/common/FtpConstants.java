@@ -35,6 +35,13 @@ public class FtpConstants {
     public static final String CMD_NOOP = "NOOP"; // Keep-alive
     public static final String CMD_QUIT = "QUIT"; // Ngat ket noi
 
+    // Tập hợp tất cả lệnh hợp lệ
+    public static final Set<String> ALL = Set.of(
+        USER, PASS, PWD, CWD, CDUP, MKD, RMD, DELE,
+        LIST, RETR, STOR, TYPE, PASV, PORT, REST,
+        SIZE, FEAT, NOOP, QUIT
+    );
+    
     // Che do du lieu
     public enum DataMode {
         PASSIVE,

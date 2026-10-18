@@ -4,7 +4,7 @@ echo ========================================================
 echo   [CLIENT] KHOI DONG FTP DESKTOP CLIENT (RFC 959)
 echo ========================================================
 
-set "MVN_NB=D:\6. Phan_Mem\NetBeans-22\netbeans\java\maven\bin\mvn.cmd"
+set "MVN_NB=D:\Tools\NetBeans-22\netbeans\java\maven\bin\mvn.cmd"
 if exist "%MVN_NB%" (
     set "MVN_CMD=%MVN_NB%"
 ) else (
