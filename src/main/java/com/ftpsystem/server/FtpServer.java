@@ -9,22 +9,21 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * May chu FTP Server Core (RFC 959)
- * Quan ly Kenh Dieu Khien (Port 2121), danh sach Client dang ket noi,
- * va thu thap cac chi so mang (Throughput, Packets, Active sessions).
+ * FTP Server Core (RFC 959)
+ * Quản lý kênh điều khiển (Port 2121), danh sách client kết nối,
+ * và thu thập các chỉ số mạng (Throughput, Packets, Active sessions).
  */
-public class FtpServer {
-    private static FtpServer instance;
+public final class FtpServer {
+    // Singleton instance
+    private static final FtpServer INSTANCE = new FtpServer();
 
-    private int controlPort = FtpConstants.DEFAULT_CONTROL_PORT;
+    private int controlPort = FtpConstants.Ports.CONTROL;
     private ServerSocket serverSocket;
-    private boolean running = false;
+    private volatile boolean running = false;
 
     private final List<ClientControlHandler> activeClients = new CopyOnWriteArrayList<>();
     private final List<ServerEventListener> listeners = new CopyOnWriteArrayList<>();
@@ -47,11 +46,8 @@ public class FtpServer {
 
     private FtpServer() {}
 
-    public static synchronized FtpServer getInstance() {
-        if (instance == null) {
-            instance = new FtpServer();
-        }
-        return instance;
+    public static FtpServer getInstance() {
+        return INSTANCE;
     }
 
     public synchronized boolean start(int port) {
@@ -61,25 +57,31 @@ public class FtpServer {
         try {
             serverSocket = new ServerSocket(controlPort);
             running = true;
-            threadPool = Executors.newCachedThreadPool();
 
-            // Khoi dong luong chap nhan ket noi (Acceptor Thread)
+            // Giới hạn số thread để tránh quá tải
+            threadPool = new ThreadPoolExecutor(
+                    10, 50, 60L, TimeUnit.SECONDS,
+                    new SynchronousQueue<>(),
+                    new ThreadPoolExecutor.CallerRunsPolicy()
+            );
+
+            // Luồng acceptor
             threadPool.submit(this::acceptLoop);
 
-            // Khoi dong Embedded Web Server
+            // Khởi động Web Server
             try {
-                webServer = new EmbeddedWebServer(FtpConstants.DEFAULT_WEB_PORT, this);
+                webServer = new EmbeddedWebServer(FtpConstants.Ports.WEB, this);
                 webServer.start();
-                notifyLog("Web Admin Portal & REST API da khoi dong tai http://localhost:" + webServer.getPort(), "INFO");
+                notifyLog("Web Admin Portal & REST API chạy tại http://localhost:" + webServer.getPort(), "INFO");
             } catch (Exception e) {
-                notifyLog("Khong the bat Web Server: " + e.getMessage(), "WARN");
+                notifyLog("Không thể bật Web Server: " + e.getMessage(), "WARN");
             }
 
             notifyServerState(true, controlPort);
-            notifyLog("FTP Server da khoi dong tren Port " + controlPort + " (Tang Van Chuyen: TCP)", "SUCCESS");
+            notifyLog("FTP Server khởi động trên Port " + controlPort, "SUCCESS");
             return true;
         } catch (IOException e) {
-            notifyLog("Khong the mo cong " + controlPort + ": " + e.getMessage(), "ERROR");
+            notifyLog("Không thể mở cổng " + controlPort + ": " + e.getMessage(), "ERROR");
             return false;
         }
     }
@@ -88,14 +90,14 @@ public class FtpServer {
         if (!running) return;
         running = false;
 
-        // Dong tat ca Client dang ket noi
+        // Đóng tất cả client
         for (ClientControlHandler client : activeClients) {
             client.cleanup();
         }
         activeClients.clear();
 
         if (serverSocket != null && !serverSocket.isClosed()) {
-            try { serverSocket.close(); } catch (Exception ignored) {}
+            try { serverSocket.close(); } catch (IOException e) { notifyLog("Lỗi đóng server socket: " + e.getMessage(), "ERROR"); }
         }
 
         if (webServer != null) {
@@ -109,7 +111,7 @@ public class FtpServer {
         }
 
         notifyServerState(false, controlPort);
-        notifyLog("FTP Server da dung hoat dong.", "INFO");
+        notifyLog("FTP Server đã dừng hoạt động.", "INFO");
     }
 
     private void acceptLoop() {
@@ -119,38 +121,38 @@ public class FtpServer {
                 ClientControlHandler handler = new ClientControlHandler(clientSocket, this);
                 activeClients.add(handler);
 
-                // Ghi nhan bat tay 3 buoc TCP (SUY DIEN tu accept() thanh cong - Java khong lo co TCP that)
-                String peer = clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort();
-                String srv = "SERVER:" + controlPort;
-                recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", peer, srv,
-                        "TCP", "SYN", 0, "[Suy dien tu Socket] Client yeu cau mo Kenh Dieu Khien"));
-                recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", srv, peer,
-                        "TCP", "SYN,ACK", 0, "[Suy dien tu Socket] Server chap nhan ket noi"));
-                recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", peer, srv,
-                        "TCP", "ACK", 0, "[Suy dien tu Socket] Bat tay 3 buoc hoan tat - ESTABLISHED"));
+                recordHandshake(clientSocket);
 
                 notifyClientConnected(handler);
-                notifyLog(String.format("Client [%s:%d] da ket noi vao Kenh Dieu Khien.", 
+                notifyLog(String.format("Client [%s:%d] đã kết nối.", 
                         clientSocket.getInetAddress().getHostAddress(), clientSocket.getPort()), "INFO");
 
                 threadPool.submit(handler);
                 updateMetrics();
             } catch (IOException e) {
-                if (!running) break;
+                if (running) notifyLog("Lỗi accept client: " + e.getMessage(), "ERROR");
             }
         }
+    }
+
+    private void recordHandshake(Socket clientSocket) {
+        String peer = clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort();
+        String srv = "SERVER:" + controlPort;
+        recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", peer, srv, "TCP", "SYN", 0, "Client yêu cầu mở kênh"));
+        recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", srv, peer, "TCP", "SYN,ACK", 0, "Server chấp nhận kết nối"));
+        recordPacket(new NetworkPacketInfo("TRANSPORT", "CONTROL_CHANNEL", peer, srv, "TCP", "ACK", 0, "Bắt tay 3 bước hoàn tất"));
     }
 
     public void removeClient(ClientControlHandler client) {
         activeClients.remove(client);
         notifyClientDisconnected(client);
-        notifyLog(String.format("Client [%s:%d] da ngat ket noi.", client.getClientIp(), client.getClientPort()), "INFO");
+        notifyLog("Client " + client.getClientIp() + " đã ngắt kết nối.", "INFO");
         updateMetrics();
     }
 
     public void kickClient(ClientControlHandler client) {
         if (client != null) {
-            notifyLog("Admin da ngat ket noi cuong buc Client: " + client.getClientIp(), "WARN");
+            notifyLog("Admin ngắt kết nối cưỡng bức Client: " + client.getClientIp(), "WARN");
             client.cleanup();
         }
     }
@@ -188,33 +190,18 @@ public class FtpServer {
         }
     }
 
-    public void addListener(ServerEventListener l) {
-        listeners.add(l);
-    }
+    public void addListener(ServerEventListener l) { listeners.add(l); }
+    public void removeListener(ServerEventListener l) { listeners.remove(l); }
 
-    public void removeListener(ServerEventListener l) {
-        listeners.remove(l);
-    }
+    private void notifyServerState(boolean state, int port) { for (ServerEventListener l : listeners) l.onServerStateChanged(state, port); }
+    private void notifyClientConnected(ClientControlHandler c) { for (ServerEventListener l : listeners) l.onClientConnected(c); }
+    private void notifyClientDisconnected(ClientControlHandler c) { for (ServerEventListener l : listeners) l.onClientDisconnected(c); }
+    private void notifyLog(String msg, String type) { for (ServerEventListener l : listeners) l.onLog(msg, type); }
 
-    private void notifyServerState(boolean state, int port) {
-        for (ServerEventListener l : listeners) l.onServerStateChanged(state, port);
-    }
-
-    private void notifyClientConnected(ClientControlHandler c) {
-        for (ServerEventListener l : listeners) l.onClientConnected(c);
-    }
-
-    private void notifyClientDisconnected(ClientControlHandler c) {
-        for (ServerEventListener l : listeners) l.onClientDisconnected(c);
-    }
-
-    private void notifyLog(String msg, String type) {
-        for (ServerEventListener l : listeners) l.onLog(msg, type);
-    }
-
+    // Getters
     public boolean isRunning() { return running; }
     public int getControlPort() { return controlPort; }
-    public int getWebPort() { return webServer != null ? webServer.getPort() : FtpConstants.DEFAULT_WEB_PORT; }
+    public int getWebPort() { return webServer != null ? webServer.getPort() : FtpConstants.Ports.WEB; }
     public List<ClientControlHandler> getActiveClients() { return activeClients; }
     public List<NetworkPacketInfo> getRecentPackets() { return new ArrayList<>(recentPackets); }
     public long getTotalTransferredBytes() { return totalTransferredBytes.get(); }
