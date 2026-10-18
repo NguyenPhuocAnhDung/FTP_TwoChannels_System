@@ -1,4 +1,5 @@
 package com.ftpsystem.common;
+import java.util.Set;
 
 /**
  * Tap hang so he thong FTP 2 Kenh (RFC 959)
@@ -9,6 +10,14 @@ public class FtpConstants {
     private FtpConstants() {
         throw new UnsupportedOperationException("Utility class - do not instantiate");
     }
+
+    public static final class Ports {
+    public static final int CONTROL = 2121;
+    public static final int WEB = 8088;
+    public static final int PASV_MIN = 30000;
+    public static final int PASV_MAX = 31000;
+    }
+
     
     // Cong mac dinh
     public static final int DEFAULT_CONTROL_PORT = 2121;
@@ -43,9 +52,10 @@ public class FtpConstants {
 
     // Tập hợp tất cả lệnh hợp lệ
     public static final Set<String> ALL = Set.of(
-        USER, PASS, PWD, CWD, CDUP, MKD, RMD, DELE,
-        LIST, RETR, STOR, TYPE, PASV, PORT, REST,
-        SIZE, FEAT, NOOP, QUIT
+        CMD_USER, CMD_PASS, CMD_PWD, CMD_CWD, CMD_CDUP,
+        CMD_MKD, CMD_RMD, CMD_DELE, CMD_LIST, CMD_RETR,
+        CMD_STOR, CMD_TYPE, CMD_PASV, CMD_PORT, CMD_REST,
+        CMD_SIZE, CMD_FEAT, CMD_NOOP, CMD_QUIT
     );
 
     // Che do du lieu
