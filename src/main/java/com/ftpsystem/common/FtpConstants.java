@@ -4,6 +4,12 @@ package com.ftpsystem.common;
  * Tap hang so he thong FTP 2 Kenh (RFC 959)
  */
 public class FtpConstants {
+
+     // Ngăn khởi tạo class
+    private FtpConstants() {
+        throw new UnsupportedOperationException("Utility class - do not instantiate");
+    }
+    
     // Cong mac dinh
     public static final int DEFAULT_CONTROL_PORT = 2121;
     public static final int DEFAULT_WEB_PORT = 8088;
@@ -41,7 +47,7 @@ public class FtpConstants {
         LIST, RETR, STOR, TYPE, PASV, PORT, REST,
         SIZE, FEAT, NOOP, QUIT
     );
-    
+
     // Che do du lieu
     public enum DataMode {
         PASSIVE,
