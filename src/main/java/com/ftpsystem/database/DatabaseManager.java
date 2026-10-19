@@ -16,6 +16,7 @@ import java.util.Properties;
  * Quan ly Ket noi MySQL Database
  * Tich hop che do Tu dong Fallback (Mock Mode) khi chua khoi dong MySQL
  * de ung dung khong bao gio bi crash khi mang di demo.
+ * tan-2280602882S
  */
 public class DatabaseManager {
     private static DatabaseManager instance;
@@ -34,7 +35,7 @@ public class DatabaseManager {
         checkAndInitConnection();
     }
 
-    public static synchronized DatabaseManager getInstance() {
+ public static synchronized DatabaseManager getInstance() {
         if (instance == null) {
             instance = new DatabaseManager();
         }

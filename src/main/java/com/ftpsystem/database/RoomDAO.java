@@ -35,7 +35,7 @@ public class RoomDAO {
         return instance;
     }
 
-    private void initMockData() {
+ private void initMockData() {
         // Mau 1 phong mac dinh do sinhvien1 lam Chu phong
         Room r = new Room("DoAn_Mang_Nhom1", "sinhvien1", "Phong Do An Mang May Tinh", "storage/rooms/DoAn_Mang_Nhom1");
         r.setId(1);
