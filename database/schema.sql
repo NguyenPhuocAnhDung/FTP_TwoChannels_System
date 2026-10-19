@@ -2,6 +2,7 @@
 -- CO SO DU LIEU HE THONG FTP SERVER/CLIENT 2 KENH (RFC 959)
 -- Database Name: ftp_system
 -- Tuong thich: MySQL 5.7, 8.0, 8.4+, MariaDB
+--Phuctan-2280602882
 -- ==========================================================
 
 CREATE DATABASE IF NOT EXISTS `ftp_system` 
