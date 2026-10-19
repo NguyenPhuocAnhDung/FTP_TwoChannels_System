@@ -679,3 +679,4 @@ public class ClientMainFrame extends JFrame implements FtpClientCore.CommandLogL
         });
     }
 }
+// Updated by Khoa - 2380604153
